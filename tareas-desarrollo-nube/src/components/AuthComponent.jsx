@@ -7,7 +7,8 @@ import {
   signInWithPopup,
   fetchSignInMethodsForEmail,
 } from 'firebase/auth';
-import { auth } from '../../firebaseConfig';
+import { auth, db } from '../../firebaseConfig';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import styles from './AuthComponent.module.css';
 
 const googleProvider = new GoogleAuthProvider();
@@ -21,7 +22,13 @@ const AuthComponent = ({ setNotification }) => {
   const handleRegister = async (e) => {
     e.preventDefault();
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      await setDoc(doc(db, "users", user.uid), {
+        email: user.email,
+        direccion: "",
+        fechaNacimiento: "",
+      });
       setNotification({ type: 'success', message: '¡Usuario registrado exitosamente!' });
     } catch (error) {
       setNotification({ type: 'error', message: `Error al registrar: ${error.message}` });
@@ -40,7 +47,20 @@ const AuthComponent = ({ setNotification }) => {
 
   const handleProviderLogin = async (provider) => {
     try {
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      const userDocRef = doc(db, "users", user.uid);
+      const docSnap = await getDoc(userDocRef);
+
+      if (!docSnap.exists()) {
+        await setDoc(userDocRef, {
+          email: user.email,
+          displayName: user.displayName,
+          photoURL: user.photoURL,
+          direccion: "",
+          fechaNacimiento: "",
+        });
+      }
       setNotification({ type: 'success', message: '¡Inicio de sesión con proveedor exitoso!' });
     } catch (error) {
       if (error.code === 'auth/account-exists-with-different-credential') {
@@ -95,7 +115,7 @@ const AuthComponent = ({ setNotification }) => {
       <div className={styles.divider}>O continuar con</div>
       <div className={styles.providerButtons}>
         <button onClick={() => handleProviderLogin(googleProvider)} className={styles.providerButton}>
-          <img src="https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png" alt="Google Logo" />
+          <img src="https://crystalpng.com/wp-content/uploads/2025/05/google-logo.png" alt="Google Logo" />
           Google
         </button>
         <button onClick={() => handleProviderLogin(facebookProvider)} className={`${styles.providerButton} ${styles.facebookButton}`}>
